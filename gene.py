@@ -102,7 +102,6 @@ def track_birth_places():
         msg.error("No birth places found.")
         return None
 
-
 def geocoder_villes(lieux):
     geoloc = Nominatim(user_agent="gedcom_mapper")
     coords = {}
@@ -130,6 +129,76 @@ def creer_carte(coords, nom_fichier="carte_ancetres.html"):
     carte.save(nom_fichier)
     print(f"✅ Carte enregistrée : {nom_fichier}")
 
+
+def extraire_evenements(individus):
+
+    data = []
+
+    for elem in individus:
+        if isinstance(elem, IndividualElement):
+            nom = elem.get_name() or "Nom inconnu"
+            parcours = []
+
+            for child in elem.get_child_elements():
+                tag = child.get_tag()
+                if tag in ['BIRT', 'DEAT', 'MARR']:
+                    date = None
+                    lieu = None
+
+                    for sub in child.get_child_elements():
+                        if sub.get_tag() == 'DATE':
+                            date = sub.get_value()
+                        elif sub.get_tag() == 'PLAC':
+                            lieu = sub.get_value()
+
+                    if lieu:
+                        parcours.append((tag, date, lieu.strip()))
+
+            if parcours:
+                data.append((nom, parcours))
+
+    return data
+
+def geocoder_lieux(liste_lieux):
+    geoloc = Nominatim(user_agent="gedcom_migration_mapper")
+    coords = {}
+    for lieu in liste_lieux:
+        try:
+            if lieu not in coords:
+                location = geoloc.geocode(lieu)
+                if location:
+                    coords[lieu] = (location.latitude, location.longitude)
+                else:
+                    print(f"⚠️ Lieu introuvable : {lieu}")
+        except Exception as e:
+            print(f"Erreur pour {lieu} : {e}")
+        time.sleep(1)
+    return coords
+
+def creer_carte_migrations(data, coords, nom_fichier="migrations.html"):
+    carte = folium.Map(location=[46.5, 2.5], zoom_start=5)
+
+    for nom, parcours in data:
+        points = []
+        tooltip = f"<b>{nom}</b><br>"
+
+        # Trier les événements par date si disponible
+        parcours = sorted(parcours, key=lambda x: x[1] if x[1] else "")
+
+        for evt_type, date, lieu in parcours:
+            if lieu in coords:
+                lat, lon = coords[lieu]
+                points.append((lat, lon))
+                tooltip += f"{evt_type} – {date or '?'} – {lieu}<br>"
+
+        if len(points) >= 2:
+            folium.PolyLine(points, color="blue", weight=2, opacity=0.7,
+                            popup=folium.Popup(tooltip, max_width=300)).add_to(carte)
+
+    carte.save(nom_fichier)
+    print(f"✅ Carte de migration enregistrée : {nom_fichier}")
+
+
 # loading variables from .env file
 load_dotenv() 
 
@@ -156,7 +225,8 @@ choices = {
     "Find individuals by surname": "Find individuals by surname",
     "Find individuals by name": "Find individuals by name",
     "Find individuals by birth place": "Find individuals by birth place",
-    "Places": "Track Birth Places",
+    "Create map of birth places": "Create a map of birth places",
+    "Migration": "Track migration of individuals",
     "Exit": "Exit the program"
 }
 
@@ -201,3 +271,16 @@ while True:
             coords = geocoder_villes(towns)
             if coords:
                 creer_carte(coords)
+    # Check if the user wants to track migration of individuals
+    if rep == 6:
+        msg.info("Tracking migration of individuals:")
+        # Extract events from the GEDCOM file
+        data = extraire_evenements(root_child_elements)
+        if not data:
+            msg.error("No migration data found.")
+            continue
+        # Get unique places from the data
+        lieux = set(lieu for _, parcours in data for _, _, lieu in parcours)
+        coords = geocoder_lieux(lieux)
+        if coords:
+            creer_carte_migrations(data, coords)
