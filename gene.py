@@ -9,6 +9,11 @@ It allows users to list individuals, search by surname or name, and track birth 
 import os
 
 from gedcom.element.individual import IndividualElement
+
+from geopy.geocoders import Nominatim
+import folium
+import time
+
 from gedcom.parser import Parser
 from dotenv import load_dotenv, dotenv_values 
 from classes import myMenu, msg
@@ -92,8 +97,38 @@ def track_birth_places():
         print("Unique Birth Places:")
         for place in sorted(birth_places):
             print(place)
+        return sorted(birth_places)
     else:
         msg.error("No birth places found.")
+        return None
+
+
+def geocoder_villes(lieux):
+    geoloc = Nominatim(user_agent="gedcom_mapper")
+    coords = {}
+
+    for lieu in lieux:
+        try:
+            location = geoloc.geocode(lieu)
+            if location:
+                coords[lieu] = (location.latitude, location.longitude)
+            else:
+                print(f"⚠️ Lieu introuvable : {lieu}")
+        except Exception as e:
+            print(f"Erreur pour {lieu} : {e}")
+        time.sleep(1)  # éviter de surcharger le service
+
+    return coords
+
+def creer_carte(coords, nom_fichier="carte_ancetres.html"):
+    # Centrer la carte sur la France par défaut
+    carte = folium.Map(location=[46.5, 2.5], zoom_start=5)
+
+    for ville, (lat, lon) in coords.items():
+        folium.Marker(location=[lat, lon], popup=ville).add_to(carte)
+
+    carte.save(nom_fichier)
+    print(f"✅ Carte enregistrée : {nom_fichier}")
 
 # loading variables from .env file
 load_dotenv() 
@@ -161,4 +196,8 @@ while True:
             msg.error("No birth place provided.")
             exit()
     if rep == 5:
-        track_birth_places()
+        towns = track_birth_places()
+        if towns:
+            coords = geocoder_villes(towns)
+            if coords:
+                creer_carte(coords)
