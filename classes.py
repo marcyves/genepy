@@ -1,28 +1,5 @@
 from os.path import isdir
 from os import mkdir
-
-class saveFolder:
-
-    def __init__(self, folder):
-        self.main_folder = folder        
-        self.check(folder)
-
-    def check(self, folder):
-        if not isdir(folder):
-            print("\n\t=== Create Folder "+ folder)
-            mkdir(folder)
-            return True
-        else:
-            return False
-
-    def setSubFolder(self, folder):
-        folder = folder.split("/")[0]
-    #        folder = folder.replace("/", "_")
-        self.save_folder = self.main_folder + "/" + folder
-        return self.check(self.save_folder)
-
-    def getSubFolder(self):
-        return self.save_folder + "/"
     
 class myMenu:
 
