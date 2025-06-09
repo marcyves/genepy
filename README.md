@@ -29,3 +29,15 @@ GEDCOM_PATH=/path/to/your/gedcom/file.ged
 ```bash
 python gene.py
 ```
+
+## Contributing
+
+Contributions are welcome! If you find a bug or have a suggestion, please open an issue or submit a pull request.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
+
+## Acknowledgments
+
+GEDCOM sample files from https://github.com/findmypast/gedcom-samples
